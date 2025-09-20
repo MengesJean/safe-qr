@@ -1,103 +1,160 @@
-import Image from "next/image";
+"use client";
+
+import { FormEvent, useRef, useState } from "react";
+import { useQRCode } from "next-qrcode";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [url, setUrl] = useState("");
+  const [qrValue, setQrValue] = useState<string | null>(null);
+  const [isLocked, setIsLocked] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { Canvas } = useQRCode();
+  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  const handleGenerate = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (isLocked) {
+      setUrl("");
+      setQrValue(null);
+      setError(null);
+      setIsLocked(false);
+      return;
+    }
+
+    const trimmed = url.trim();
+
+    if (!trimmed) {
+      setError("Veuillez renseigner une URL.");
+      setQrValue(null);
+      return;
+    }
+
+    try {
+      // Valide directement l'URL si elle contient un schéma.
+      new URL(trimmed);
+      setQrValue(trimmed);
+      setError(null);
+      setIsLocked(true);
+    } catch {
+      try {
+        // Tente d'ajouter https:// pour renforcer la tolérance de saisie.
+        const prefixed = `https://${trimmed}`;
+        new URL(prefixed);
+        setQrValue(prefixed);
+        setError(null);
+        setIsLocked(true);
+      } catch {
+        setError("L'URL saisie n'est pas valide.");
+        setQrValue(null);
+        setIsLocked(false);
+      }
+    }
+  };
+
+  const handleDownload = () => {
+    const canvas = canvasContainerRef.current?.querySelector("canvas");
+
+    if (!canvas) {
+      return;
+    }
+
+    const dataUrl = canvas.toDataURL("image/png");
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = `qr-code-${timestamp}.png`;
+    link.click();
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-slate-50 flex items-center justify-center px-4 py-12">
+      <Card className="w-full max-w-xl border-slate-800/60 bg-slate-900/70 backdrop-blur">
+        <CardHeader className="space-y-2">
+          <CardTitle className="text-2xl font-semibold text-white">
+            Générateur de QR code
+          </CardTitle>
+          <CardDescription className="text-slate-300">
+            Convertissez instantanément une URL en QR code prêt à partager.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form className="space-y-4" onSubmit={handleGenerate}>
+            <div className={`space-y-2${isLocked ? " hidden" : ""}`}>
+              <Label htmlFor="target-url" className="text-slate-200">
+                URL à convertir
+              </Label>
+              <Input
+                id="target-url"
+                type="url"
+                placeholder="https://exemple.com"
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                className="bg-slate-950/60 border-slate-800 text-slate-50 placeholder:text-slate-500"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                disabled={isLocked}
+              />
+              {error ? (
+                <p className="text-sm text-rose-400">{error}</p>
+              ) : null}
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button type="submit" className="flex-1">
+                {isLocked ? "Générer un autre QR Code" : "Générer"}
+              </Button>
+              {qrValue ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 border-slate-700 bg-transparent text-slate-100 hover:bg-slate-800/80"
+                  onClick={handleDownload}
+                >
+                  Télécharger
+                </Button>
+              ) : null}
+            </div>
+          </form>
+        </CardContent>
+        <CardFooter className="flex w-full flex-col items-center gap-6">
+          <div
+            ref={canvasContainerRef}
+            className="grid w-full place-items-center rounded-lg border border-dashed border-slate-700/70 bg-slate-950/50 px-10 py-8"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+            {qrValue ? (
+              <Canvas
+                text={qrValue}
+                options={{
+                  type: "image/png",
+                  quality: 0.92,
+                  margin: 2,
+                  scale: 8,
+                  width: 240,
+                  color: {
+                    dark: "#020617",
+                    light: "#f8fafc",
+                  },
+                }}
+              />
+            ) : (
+              <p className="text-sm text-slate-400 text-center">
+                Votre QR code apparaîtra ici après génération.
+              </p>
+            )}
+          </div>
+          {qrValue ? (
+            <p className="w-full break-words text-center text-xs text-slate-400">
+              {qrValue}
+            </p>
+          ) : null}
+        </CardFooter>
+      </Card>
     </div>
   );
 }
