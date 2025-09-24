@@ -1,25 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
-
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSupabaseSession } from "@/hooks/use-supabase-session";
 import { getSupabaseClient } from "@/lib/supabase-client";
 import { logQrGeneration } from "@/lib/qr-logging";
 
 import { QrGenerator } from "./qr-generator";
+import { QrHistory } from "./qr-history";
 
 type AuthState = "idle" | "pending";
 
 type AuthError = {
   message: string;
-};
-
-const getUserLabel = (session: Session) => {
-  const fullName = session.user.user_metadata?.full_name as string | undefined;
-  return fullName || session.user.email || "Compte Google";
 };
 
 export function QrGeneratorWithAuth() {
@@ -48,27 +43,27 @@ export function QrGeneratorWithAuth() {
     }
   };
 
-  const handleSignOut = async () => {
-    setAuthError(null);
-    setAuthState("pending");
-
-    const { error } = await supabase.auth.signOut();
-
-    if (error) {
-      setAuthError({ message: error.message });
-    }
-
-    setAuthState("idle");
-  };
-
-
   const handleLogGeneration = async (resolvedUrl: string) => {
     const userId = session?.user.id;
     if (!userId) {
       return;
     }
 
-    await logQrGeneration(resolvedUrl, userId);
+    let title: string | null = null;
+    let imageUrl: string | null = null;
+
+    try {
+      const response = await fetch(`/api/metadata?url=${encodeURIComponent(resolvedUrl)}`);
+      if (response.ok) {
+        const payload = (await response.json()) as { title?: string | null; imageUrl?: string | null };
+        title = payload.title ?? null;
+        imageUrl = payload.imageUrl ?? null;
+      }
+    } catch (error) {
+      console.warn('Failed to fetch metadata for QR code', error);
+    }
+
+    await logQrGeneration(resolvedUrl, userId, { title, imageUrl });
   };
 
   if (isLoading) {
@@ -88,6 +83,7 @@ export function QrGeneratorWithAuth() {
             Connectez-vous avec votre compte Google pour enregistrer vos QR codes en toute sécurité.
           </p>
         </div>
+        <div className="text-sm text-slate-500 dark:text-slate-400">Vous pouvez également utiliser le bouton en haut à droite.</div>
         <Button onClick={handleSignIn} disabled={authState === "pending"} className="w-full sm:w-auto">
           Continuer avec Google
         </Button>
@@ -98,34 +94,22 @@ export function QrGeneratorWithAuth() {
     );
   }
 
-  const email = session.user.email;
-  const userLabel = getUserLabel(session);
-
   return (
-    <>
-      <CardContent className="flex flex-col gap-2 border-b border-slate-200/70 pb-4 text-sm dark:border-slate-800">
-        <div>
-          <p className="font-medium text-slate-900 dark:text-slate-50">Connecté en tant que {userLabel}</p>
-          {email ? <p className="text-xs text-slate-500 dark:text-slate-400">{email}</p> : null}
-        </div>
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Vos QR codes générés seront enregistrés avec la date et l&apos;heure correspondantes.
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleSignOut}
-            disabled={authState === "pending"}
-          >
-            Se déconnecter
-          </Button>
-        </div>
-        {authError ? (
-          <p className="text-sm text-rose-500">{authError.message}</p>
-        ) : null}
+    <Tabs defaultValue="generate" className="w-full">
+      <CardContent className="pb-0">
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="generate">Générer</TabsTrigger>
+          <TabsTrigger value="history">Historique</TabsTrigger>
+        </TabsList>
       </CardContent>
-      <QrGenerator onLog={handleLogGeneration} />
-    </>
+      <TabsContent value="generate">
+        <QrGenerator onLog={handleLogGeneration} />
+      </TabsContent>
+      <TabsContent value="history">
+        <CardContent className="space-y-4">
+          <QrHistory userId={session.user.id} />
+        </CardContent>
+      </TabsContent>
+    </Tabs>
   );
 }

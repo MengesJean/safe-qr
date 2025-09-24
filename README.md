@@ -12,6 +12,7 @@ Safe QR is a minimalist QR-code generator built with Next.js and shadcn/ui. Ente
 - Download QR codes as PNG files (timestamped filenames)
 - Lock/unlock state to prevent accidental edits after generation
 - Theme toggle with light, dark, and system modes
+- Review your saved QR codes with metadata and preview thumbnails (requires Google sign-in)
 
 ## Getting Started
 
@@ -35,15 +36,25 @@ npm run build
 2. Duplicate `.env.example` into `.env.local` and fill in `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 3. Restart the dev server so Next.js picks up the new environment variables.
 4. In **Authentication → Providers**, enable Google, add your OAuth client credentials, and set the redirect URL to `https://your-project.supabase.co/auth/v1/callback`.
-5. Create a `qr_generations` table with columns for `url` (text) and `generated_at` (timestamp).
+5. Create (or update) a `qr_generations` table that stores the target URL, optional metadata, and timestamp for each QR.
 
 ```sql
 create table if not exists qr_generations (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users not null,
   url text not null,
+  title text,
+  image_url text,
   generated_at timestamptz not null default timezone('utc', now())
 );
+```
+
+If your table already exists, run:
+
+```sql
+alter table qr_generations
+  add column if not exists title text,
+  add column if not exists image_url text;
 ```
 
 The main interface lives in `src/app/page.tsx`; UI primitives are in `src/components/ui`, and theme management is handled by `next-themes` via `src/components/theme-provider.tsx` and the `ThemeToggle` component.

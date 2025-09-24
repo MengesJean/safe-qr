@@ -3,7 +3,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 
 export default function Home() {
   return (
-    <Card className="w-full max-w-xl border-slate-200/80 bg-white/80 backdrop-blur dark:border-slate-800/60 dark:bg-slate-900/70">
+    <Card className="border-slate-200/80 bg-white/80 backdrop-blur dark:border-slate-800/60 dark:bg-slate-900/70">
       <CardHeader className="space-y-2">
         <CardTitle className="text-2xl font-semibold text-slate-900 dark:text-white">
           Générateur de QR code
