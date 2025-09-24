@@ -14,6 +14,7 @@ type QrFormProps = {
   onUrlChange: (nextValue: string) => void;
   onDownload: () => void;
   showDownloadButton: boolean;
+  isDownloading?: boolean;
 };
 
 export function QrForm({
@@ -25,6 +26,7 @@ export function QrForm({
   onUrlChange,
   onDownload,
   showDownloadButton,
+  isDownloading = false,
 }: QrFormProps) {
   return (
     <form className="space-y-4 pt-4" onSubmit={onSubmit}>
@@ -50,6 +52,7 @@ export function QrForm({
         isSubmitDisabled={isSubmitDisabled}
         onDownload={onDownload}
         showDownloadButton={showDownloadButton}
+        isDownloading={isDownloading}
       />
     </form>
   );

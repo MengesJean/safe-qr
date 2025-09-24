@@ -6,6 +6,7 @@ import { useQRCode } from "next-qrcode";
 import { CardContent, CardFooter } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { normalizeUrl } from "@/lib/normalize-url";
+import { useToastContext } from "@/components/toast-provider";
 
 import { QrForm } from "./qr-form";
 import { QrPreview } from "./qr-preview";
@@ -19,8 +20,10 @@ export function QrGenerator({ onLog }: QrGeneratorProps) {
   const [qrValue, setQrValue] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   const { Canvas } = useQRCode();
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
+  const { success, error } = useToastContext();
 
   const trimmedUrl = url.trim();
   const normalizedUrl = trimmedUrl ? normalizeUrl(trimmedUrl) : null;
@@ -69,19 +72,36 @@ export function QrGenerator({ onLog }: QrGeneratorProps) {
     void onLog(resolvedUrl);
   };
 
-  const handleDownload = () => {
-    const canvas = canvasContainerRef.current?.querySelector("canvas");
+  const handleDownload = async () => {
+    try {
+      setIsDownloading(true);
+      
+      const canvas = canvasContainerRef.current?.querySelector("canvas");
+      if (!canvas) {
+        throw new Error("Canvas QR non trouvé");
+      }
 
-    if (!canvas) {
-      return;
+      // Petite pause pour l'UX
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      const dataUrl = canvas.toDataURL("image/png");
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `qr-code-${timestamp}.png`;
+      
+      // Déclencher le téléchargement
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      success("QR code téléchargé avec succès !");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Erreur lors du téléchargement";
+      error(errorMessage);
+    } finally {
+      setIsDownloading(false);
     }
-
-    const dataUrl = canvas.toDataURL("image/png");
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const link = document.createElement("a");
-    link.href = dataUrl;
-    link.download = `qr-code-${timestamp}.png`;
-    link.click();
   };
 
   return (
@@ -99,6 +119,7 @@ export function QrGenerator({ onLog }: QrGeneratorProps) {
           }}
           onDownload={handleDownload}
           showDownloadButton={Boolean(qrValue)}
+          isDownloading={isDownloading}
         />
       </CardContent>
       <CardFooter className="flex w-full flex-col items-center gap-6">

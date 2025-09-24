@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSupabaseSession } from "@/hooks/use-supabase-session";
 import { getSupabaseClient } from "@/lib/supabase-client";
 import { logQrGeneration } from "@/lib/qr-logging";
+import { fetchUrlMetadata } from "@/lib/actions/metadata";
 
 import { QrGenerator } from "./qr-generator";
 import { QrHistory } from "./qr-history";
@@ -53,11 +54,12 @@ export function QrGeneratorWithAuth() {
     let imageUrl: string | null = null;
 
     try {
-      const response = await fetch(`/api/metadata?url=${encodeURIComponent(resolvedUrl)}`);
-      if (response.ok) {
-        const payload = (await response.json()) as { title?: string | null; imageUrl?: string | null };
-        title = payload.title ?? null;
-        imageUrl = payload.imageUrl ?? null;
+      const result = await fetchUrlMetadata(resolvedUrl);
+      if (result.success) {
+        title = result.data.title;
+        imageUrl = result.data.imageUrl;
+      } else {
+        console.warn('Failed to fetch metadata for QR code:', result.error);
       }
     } catch (error) {
       console.warn('Failed to fetch metadata for QR code', error);

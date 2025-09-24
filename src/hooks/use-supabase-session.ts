@@ -16,18 +16,41 @@ export function useSupabaseSession(): UseSupabaseSessionResult {
 
   useEffect(() => {
     const supabase = getSupabaseClient();
+    let isMounted = true;
 
-    void supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session ?? null);
-      setIsLoading(false);
-    });
+    // Récupération initiale de la session avec gestion du cleanup
+    supabase.auth.getSession()
+      .then(({ data, error }) => {
+        if (!isMounted) return;
+        
+        if (error) {
+          console.error('Erreur lors de la récupération de la session:', error);
+        }
+        
+        setSession(data.session ?? null);
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        if (!isMounted) return;
+        console.error('Erreur inattendue lors de la récupération de la session:', error);
+        setSession(null);
+        setIsLoading(false);
+      });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!isMounted) return;
+      
+      // Log des événements d'authentification pour le debugging
+      console.debug('Auth state change:', event, nextSession?.user?.id);
+      
       setSession(nextSession);
-      setIsLoading(false);
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        setIsLoading(false);
+      }
     });
 
     return () => {
+      isMounted = false;
       listener.subscription.unsubscribe();
     };
   }, []);

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQRCode } from "next-qrcode";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { getSupabaseClient } from "@/lib/supabase-client";
+import { useToastContext } from "@/components/toast-provider";
 import Link from "next/link";
 
 type HistoryEntry = {
@@ -28,6 +29,8 @@ export function QrHistory({ userId }: QrHistoryProps) {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const handleDelete = useCallback(async (id: string) => {
     const { error } = await supabase.from("qr_generations").delete().eq("id", id);
@@ -39,40 +42,58 @@ export function QrHistory({ userId }: QrHistoryProps) {
     setEntries((previous) => previous.filter((entry) => entry.id !== id));
   }, [supabase]);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchHistory = async () => {
+  const fetchHistory = useCallback(async (offset = 0, append = false) => {
+    const ITEMS_PER_PAGE = 20;
+    
+    if (!append) {
       setIsLoading(true);
-      setError(null);
+    } else {
+      setIsLoadingMore(true);
+    }
+    setError(null);
 
-      const { data, error: fetchError } = await supabase
+    try {
+      const { data, error: fetchError, count } = await supabase
         .from("qr_generations")
-        .select("id, url, title, image_url, generated_at")
+        .select("id, url, title, image_url, generated_at", { count: 'exact' })
         .eq("user_id", userId)
         .order("generated_at", { ascending: false })
-        .limit(50);
-
-      if (!isMounted) {
-        return;
-      }
+        .range(offset, offset + ITEMS_PER_PAGE - 1);
 
       if (fetchError) {
-        setError(fetchError.message);
-        setEntries([]);
-      } else {
-        setEntries(data ?? []);
+        throw fetchError;
       }
 
+      const newEntries = data ?? [];
+      
+      if (append) {
+        setEntries(prev => [...prev, ...newEntries]);
+      } else {
+        setEntries(newEntries);
+      }
+
+      // Vérifier s'il y a plus d'éléments
+      setHasMore(newEntries.length === ITEMS_PER_PAGE && (count ?? 0) > offset + ITEMS_PER_PAGE);
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : "Erreur de chargement");
+      if (!append) {
+        setEntries([]);
+      }
+    } finally {
       setIsLoading(false);
-    };
-
-    void fetchHistory();
-
-    return () => {
-      isMounted = false;
-    };
+      setIsLoadingMore(false);
+    }
   }, [supabase, userId]);
+
+  const loadMore = useCallback(() => {
+    if (!isLoadingMore && hasMore) {
+      void fetchHistory(entries.length, true);
+    }
+  }, [fetchHistory, entries.length, isLoadingMore, hasMore]);
+
+  useEffect(() => {
+    void fetchHistory();
+  }, [fetchHistory]);
 
   if (isLoading) {
     return (
@@ -91,7 +112,7 @@ export function QrHistory({ userId }: QrHistoryProps) {
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <p className="text-sm text-rose-500">{error}</p>
-          <Button variant="outline" onClick={() => void supabase.auth.refreshSession()}>
+          <Button variant="outline" onClick={() => void fetchHistory()}>
             Réessayer
           </Button>
         </CardContent>
@@ -108,10 +129,25 @@ export function QrHistory({ userId }: QrHistoryProps) {
   }
 
   return (
-    <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 py-2">
-      {entries.map((entry) => (
-        <QrHistoryItem key={entry.id} entry={entry} onDelete={handleDelete} />
-      ))}
+    <div className="space-y-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 py-2">
+        {entries.map((entry) => (
+          <QrHistoryItem key={entry.id} entry={entry} onDelete={handleDelete} />
+        ))}
+      </div>
+      
+      {hasMore && (
+        <div className="flex justify-center">
+          <Button
+            variant="outline"
+            onClick={loadMore}
+            disabled={isLoadingMore}
+            className="min-w-32"
+          >
+            {isLoadingMore ? "Chargement..." : "Charger plus"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -121,27 +157,46 @@ type QrHistoryItemProps = {
   onDelete: (id: string) => Promise<void>;
 };
 
-function QrHistoryItem({ entry, onDelete }: QrHistoryItemProps) {
+const QrHistoryItem = memo(function QrHistoryItem({ entry, onDelete }: QrHistoryItemProps) {
   const { Canvas } = useQRCode();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
+  const { success, error } = useToastContext();
 
-  const handleDownload = () => {
-    const canvas = canvasContainerRef.current?.querySelector("canvas");
+  const handleDownload = async () => {
+    try {
+      setIsDownloading(true);
+      
+      const canvas = canvasContainerRef.current?.querySelector("canvas");
+      if (!canvas) {
+        throw new Error("Canvas QR non trouvé");
+      }
 
-    if (!canvas) {
-      return;
+      // Petite pause pour l'UX
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      const dataUrl = canvas.toDataURL("image/png");
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `qr-code-${timestamp}.png`;
+      
+      // Déclencher le téléchargement
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      success("QR code téléchargé avec succès !");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Erreur lors du téléchargement";
+      error(errorMessage);
+    } finally {
+      setIsDownloading(false);
     }
-
-    const dataUrl = canvas.toDataURL("image/png");
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const link = document.createElement("a");
-    link.href = dataUrl;
-    link.download = `qr-code-${timestamp}.png`;
-    link.click();
   };
 
   return (
@@ -214,7 +269,12 @@ function QrHistoryItem({ entry, onDelete }: QrHistoryItemProps) {
           </div>
           <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-1 flex-col items-stretch gap-2 sm:flex-row sm:justify-start">
-              <Button onClick={handleDownload} disabled={isDeleting}>Télécharger</Button>
+              <Button 
+                onClick={handleDownload} 
+                disabled={isDeleting || isDownloading}
+              >
+                {isDownloading ? "Téléchargement..." : "Télécharger"}
+              </Button>
               <Link
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 px-4")}
                 href={entry.url}
@@ -231,7 +291,7 @@ function QrHistoryItem({ entry, onDelete }: QrHistoryItemProps) {
                 setDeleteError(null);
                 setIsDeleteConfirmOpen(true);
               }}
-              disabled={isDeleting}
+              disabled={isDeleting || isDownloading}
             >
               Supprimer
             </Button>
@@ -271,8 +331,11 @@ function QrHistoryItem({ entry, onDelete }: QrHistoryItemProps) {
                   await onDelete(entry.id);
                   setIsDeleteConfirmOpen(false);
                   setIsDialogOpen(false);
-                } catch (error) {
-                  setDeleteError(error instanceof Error ? error.message : "Une erreur est survenue.");
+                  success("QR code supprimé avec succès");
+                } catch (deleteError) {
+                  const errorMessage = deleteError instanceof Error ? deleteError.message : "Une erreur est survenue.";
+                  setDeleteError(errorMessage);
+                  error(`Erreur de suppression: ${errorMessage}`);
                 } finally {
                   setIsDeleting(false);
                 }
@@ -286,4 +349,4 @@ function QrHistoryItem({ entry, onDelete }: QrHistoryItemProps) {
       </Dialog>
     </>
   );
-}
+});
