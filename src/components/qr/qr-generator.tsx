@@ -10,7 +10,11 @@ import { normalizeUrl } from "@/lib/normalize-url";
 import { QrForm } from "./qr-form";
 import { QrPreview } from "./qr-preview";
 
-export function QrGenerator() {
+type QrGeneratorProps = {
+  onLog: (url: string) => Promise<void> | void;
+};
+
+export function QrGenerator({ onLog }: QrGeneratorProps) {
   const [url, setUrl] = useState("");
   const [qrValue, setQrValue] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
@@ -32,7 +36,7 @@ export function QrGenerator() {
       "border-rose-500 focus-visible:ring-rose-500/40 dark:border-rose-400 dark:focus-visible:ring-rose-400/40",
   );
 
-  const handleGenerate = (event: FormEvent<HTMLFormElement>) => {
+  const handleGenerate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (isLocked) {
@@ -61,6 +65,8 @@ export function QrGenerator() {
     setQrValue(resolvedUrl);
     setSubmissionError(null);
     setIsLocked(true);
+
+    void onLog(resolvedUrl);
   };
 
   const handleDownload = () => {
