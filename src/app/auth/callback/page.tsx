@@ -31,7 +31,7 @@ export default function AuthCallbackPage() {
       return;
     }
 
-    void supabase.auth.exchangeCodeForSession({ authCode }).then(({ error }) => {
+    void supabase.auth.exchangeCodeForSession(authCode).then(({ error }) => {
       if (error) {
         setStatus({ message: error.message, isError: true });
         return;
