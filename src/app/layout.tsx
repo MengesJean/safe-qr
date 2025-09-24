@@ -36,7 +36,7 @@ export default function RootLayout({
               <ThemeToggle />
               <AccountButton />
             </div>
-            <main className="flex flex-1 items-center justify-center">
+            <main className="flex flex-1 items-center justify-center pt-10">
               {children}
             </main>
           </div>

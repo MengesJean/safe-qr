@@ -108,7 +108,7 @@ export function QrHistory({ userId }: QrHistoryProps) {
   }
 
   return (
-    <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 py-2">
       {entries.map((entry) => (
         <QrHistoryItem key={entry.id} entry={entry} onDelete={handleDelete} />
       ))}
@@ -156,8 +156,8 @@ function QrHistoryItem({ entry, onDelete }: QrHistoryItemProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-            <div className="relative h-40 overflow-hidden rounded-md border border-slate-200/70 bg-white/70 dark:border-slate-800/60 dark:bg-slate-900/60">
-                {entry.image_url ? (
+            {entry.image_url ? (
+                <div className="relative h-40 overflow-hidden rounded-md border border-slate-200/70 bg-white/70 dark:border-slate-800/60 dark:bg-slate-900/60">
                   <Image
                     src={entry.image_url}
                     alt={entry.title || entry.url}
@@ -168,8 +168,8 @@ function QrHistoryItem({ entry, onDelete }: QrHistoryItemProps) {
                     unoptimized
                     referrerPolicy="no-referrer"
                   />
-                ) : null}
-            </div>
+                </div>
+            ) : <div className="hidden md:block relative h-40 overflow-hidden rounded-md border border-slate-200/70 bg-white/70 dark:border-slate-800/60 dark:bg-slate-900/60"></div>}
           <div className="flex items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-300">
             <span className="truncate" title={entry.url}>
               {entry.url}
