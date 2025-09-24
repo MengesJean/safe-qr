@@ -115,7 +115,7 @@ const QrHistoryItem = memo(function QrHistoryItem({ entry, onDelete }: QrHistory
                   />
                 </div>
             ) : <div className="hidden md:block relative h-40 overflow-hidden rounded-md border border-slate-200/70 bg-white/70 dark:border-slate-800/60 dark:bg-slate-900/60"></div>}
-          <div className="flex items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-300">
+          <div className="flex flex-col justify-between gap-3 text-xs text-slate-600 dark:text-slate-300">
             <span className="truncate" title={entry.url}>
               {entry.url}
             </span>
