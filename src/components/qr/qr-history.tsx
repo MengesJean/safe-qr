@@ -1,80 +1,27 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { useQRCode } from "next-qrcode";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { getSupabaseClient } from "@/lib/supabase-client";
+import { useToastContext } from "@/components/providers";
+import { useQrHistory } from "@/hooks/qr/use-qr-history";
+import { downloadQrCode } from "@/services/qr/generator";
+import type { QrHistoryItem } from "@/types";
 import Link from "next/link";
-
-type HistoryEntry = {
-  id: string;
-  url: string;
-  title: string | null;
-  image_url: string | null;
-  generated_at: string;
-};
 
 type QrHistoryProps = {
   userId: string;
 };
 
-export function QrHistory({ userId }: QrHistoryProps) {
-  const supabase = useMemo(() => getSupabaseClient(), []);
-  const [entries, setEntries] = useState<HistoryEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export const QrHistory = ({ userId }: QrHistoryProps) => {
+  const { items, loading, loadingMore, hasMore, deleteItem, loadMore } = useQrHistory(userId);
 
-  const handleDelete = useCallback(async (id: string) => {
-    const { error } = await supabase.from("qr_generations").delete().eq("id", id);
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    setEntries((previous) => previous.filter((entry) => entry.id !== id));
-  }, [supabase]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchHistory = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      const { data, error: fetchError } = await supabase
-        .from("qr_generations")
-        .select("id, url, title, image_url, generated_at")
-        .eq("user_id", userId)
-        .order("generated_at", { ascending: false })
-        .limit(50);
-
-      if (!isMounted) {
-        return;
-      }
-
-      if (fetchError) {
-        setError(fetchError.message);
-        setEntries([]);
-      } else {
-        setEntries(data ?? []);
-      }
-
-      setIsLoading(false);
-    };
-
-    void fetchHistory();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [supabase, userId]);
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-lg border border-slate-200/80 bg-white/70 p-6 text-sm text-slate-500 dark:border-slate-800/60 dark:bg-slate-900/70 dark:text-slate-400">
         Chargement de vos QR codes...
@@ -82,24 +29,7 @@ export function QrHistory({ userId }: QrHistoryProps) {
     );
   }
 
-  if (error) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Erreur</CardTitle>
-          <CardDescription>Impossible de récupérer vos QR codes enregistrés.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <p className="text-sm text-rose-500">{error}</p>
-          <Button variant="outline" onClick={() => void supabase.auth.refreshSession()}>
-            Réessayer
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (entries.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50/80 px-6 py-8 text-center text-sm text-slate-500 dark:border-slate-700/60 dark:bg-slate-950/40 dark:text-slate-400">
         Aucun QR code enregistré pour le moment.
@@ -108,40 +38,55 @@ export function QrHistory({ userId }: QrHistoryProps) {
   }
 
   return (
-    <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 py-2">
-      {entries.map((entry) => (
-        <QrHistoryItem key={entry.id} entry={entry} onDelete={handleDelete} />
-      ))}
+    <div className="space-y-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 py-2">
+        {items.map((entry) => (
+          <QrHistoryItem key={entry.id} entry={entry} onDelete={deleteItem} />
+        ))}
+      </div>
+      
+      {hasMore && (
+        <div className="flex justify-center">
+          <Button
+            variant="outline"
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="min-w-32"
+          >
+            {loadingMore ? "Chargement..." : "Charger plus"}
+          </Button>
+        </div>
+      )}
     </div>
   );
-}
-
-type QrHistoryItemProps = {
-  entry: HistoryEntry;
-  onDelete: (id: string) => Promise<void>;
 };
 
-function QrHistoryItem({ entry, onDelete }: QrHistoryItemProps) {
+type QrHistoryItemProps = {
+  entry: QrHistoryItem;
+  onDelete: (id: string) => Promise<boolean>;
+};
+
+const QrHistoryItem = memo(function QrHistoryItem({ entry, onDelete }: QrHistoryItemProps) {
   const { Canvas } = useQRCode();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
+  const { success, error } = useToastContext();
 
-  const handleDownload = () => {
-    const canvas = canvasContainerRef.current?.querySelector("canvas");
-
-    if (!canvas) {
-      return;
+  const handleDownload = async () => {
+    try {
+      setIsDownloading(true);
+      await downloadQrCode(canvasContainerRef);
+      success("QR code téléchargé avec succès !");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Erreur lors du téléchargement";
+      error(errorMessage);
+    } finally {
+      setIsDownloading(false);
     }
-
-    const dataUrl = canvas.toDataURL("image/png");
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const link = document.createElement("a");
-    link.href = dataUrl;
-    link.download = `qr-code-${timestamp}.png`;
-    link.click();
   };
 
   return (
@@ -214,7 +159,12 @@ function QrHistoryItem({ entry, onDelete }: QrHistoryItemProps) {
           </div>
           <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-1 flex-col items-stretch gap-2 sm:flex-row sm:justify-start">
-              <Button onClick={handleDownload} disabled={isDeleting}>Télécharger</Button>
+              <Button 
+                onClick={handleDownload} 
+                disabled={isDeleting || isDownloading}
+              >
+                {isDownloading ? "Téléchargement..." : "Télécharger"}
+              </Button>
               <Link
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 px-4")}
                 href={entry.url}
@@ -231,7 +181,7 @@ function QrHistoryItem({ entry, onDelete }: QrHistoryItemProps) {
                 setDeleteError(null);
                 setIsDeleteConfirmOpen(true);
               }}
-              disabled={isDeleting}
+              disabled={isDeleting || isDownloading}
             >
               Supprimer
             </Button>
@@ -268,11 +218,19 @@ function QrHistoryItem({ entry, onDelete }: QrHistoryItemProps) {
                 setDeleteError(null);
                 setIsDeleting(true);
                 try {
-                  await onDelete(entry.id);
-                  setIsDeleteConfirmOpen(false);
-                  setIsDialogOpen(false);
-                } catch (error) {
-                  setDeleteError(error instanceof Error ? error.message : "Une erreur est survenue.");
+                  const success_result = await onDelete(entry.id);
+                  if (success_result) {
+                    setIsDeleteConfirmOpen(false);
+                    setIsDialogOpen(false);
+                    success("QR code supprimé avec succès");
+                  } else {
+                    setDeleteError("Erreur lors de la suppression");
+                    error("Erreur lors de la suppression");
+                  }
+                } catch (deleteError) {
+                  const errorMessage = deleteError instanceof Error ? deleteError.message : "Une erreur est survenue.";
+                  setDeleteError(errorMessage);
+                  error(`Erreur de suppression: ${errorMessage}`);
                 } finally {
                   setIsDeleting(false);
                 }
@@ -286,4 +244,4 @@ function QrHistoryItem({ entry, onDelete }: QrHistoryItemProps) {
       </Dialog>
     </>
   );
-}
+});

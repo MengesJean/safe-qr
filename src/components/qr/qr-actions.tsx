@@ -5,9 +5,10 @@ type QrActionsProps = {
   isSubmitDisabled: boolean;
   onDownload: () => void;
   showDownloadButton: boolean;
+  isDownloading?: boolean;
 };
 
-export function QrActions({ isLocked, isSubmitDisabled, onDownload, showDownloadButton }: QrActionsProps) {
+export const QrActions = ({ isLocked, isSubmitDisabled, onDownload, showDownloadButton, isDownloading = false }: QrActionsProps) => {
   return (
     <div className="flex flex-col gap-3 sm:flex-row">
       <Button type="submit" className="flex-1" disabled={isSubmitDisabled}>
@@ -19,10 +20,11 @@ export function QrActions({ isLocked, isSubmitDisabled, onDownload, showDownload
           variant="outline"
           className="flex-1 border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800/80"
           onClick={onDownload}
+          disabled={isDownloading}
         >
-          Télécharger
+          {isDownloading ? "Téléchargement..." : "Télécharger"}
         </Button>
       ) : null}
     </div>
   );
-}
+};
