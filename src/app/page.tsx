@@ -1,4 +1,4 @@
-import { QrGenerator } from "@/components/qr/qr-generator";
+import { QrGeneratorWithAuth } from "@/components/qr/qr-generator-with-auth";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Home() {
@@ -12,7 +12,7 @@ export default function Home() {
           Convertissez instantanément une URL en QR code prêt à partager.
         </CardDescription>
       </CardHeader>
-      <QrGenerator />
+      <QrGeneratorWithAuth />
     </Card>
   );
 }

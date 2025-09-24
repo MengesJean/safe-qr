@@ -27,7 +27,7 @@ export function QrForm({
   showDownloadButton,
 }: QrFormProps) {
   return (
-    <form className="space-y-4" onSubmit={onSubmit}>
+    <form className="space-y-4 pt-4" onSubmit={onSubmit}>
       <div className={`space-y-2${isLocked ? " hidden" : ""}`}>
         <Label htmlFor="target-url" className="text-slate-700 dark:text-slate-200">
           URL à convertir
