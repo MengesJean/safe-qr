@@ -2,13 +2,13 @@ import { Suspense } from "react";
 
 import { AuthCallbackHandler } from "./auth-callback-handler";
 
-function AuthCallbackFallback() {
+const AuthCallbackFallback = () => {
   return (
     <p className="text-sm text-slate-500">Connexion en cours...</p>
   );
-}
+};
 
-export default function AuthCallbackPage() {
+const AuthCallbackPage = () => {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <Suspense fallback={<AuthCallbackFallback />}>
@@ -16,4 +16,6 @@ export default function AuthCallbackPage() {
       </Suspense>
     </div>
   );
-}
+};
+
+export default AuthCallbackPage;

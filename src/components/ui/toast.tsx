@@ -29,7 +29,7 @@ const toastStyles = {
   info: "border-blue-500 bg-blue-50 text-blue-800 dark:bg-blue-950/50 dark:text-blue-200",
 };
 
-export function Toast({ toast, onRemove }: ToastProps) {
+export const Toast = ({ toast, onRemove }: ToastProps) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const Icon = toastIcons[toast.type];
@@ -75,14 +75,14 @@ export function Toast({ toast, onRemove }: ToastProps) {
       </button>
     </div>
   );
-}
+};
 
 type ToastContainerProps = {
   toasts: Toast[];
   onRemove: (id: string) => void;
 };
 
-export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
+export const ToastContainer = ({ toasts, onRemove }: ToastContainerProps) => {
   return (
     <div className="pointer-events-none fixed bottom-6 right-6 z-50 flex flex-col gap-3">
       {toasts.map((toast) => (
@@ -90,4 +90,4 @@ export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
       ))}
     </div>
   );
-}
+};

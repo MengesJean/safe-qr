@@ -3,8 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 
 import { AccountButton } from "@/components/account/account-button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { ThemeProvider } from "@/components/theme-provider";
-import { ToastProvider } from "@/components/toast-provider";
+import { ThemeProvider, ToastProvider } from "@/components/providers";
 
 import "./globals.css";
 
@@ -23,11 +22,11 @@ export const metadata: Metadata = {
   description: "Generate safe QR Code, without server gateway.",
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
+}>) => {
   return (
     <html lang="fr" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background antialiased`}>
@@ -47,4 +46,6 @@ export default function RootLayout({
       </body>
     </html>
   );
-}
+};
+
+export default RootLayout;

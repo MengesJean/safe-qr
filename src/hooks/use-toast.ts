@@ -10,7 +10,7 @@ type Toast = {
   type: ToastType;
 };
 
-export function useToast() {
+export const useToast = () => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const showToast = useCallback((message: string, type: ToastType = "info") => {
@@ -19,10 +19,10 @@ export function useToast() {
     
     setToasts(prev => [...prev, newToast]);
     
-    // Auto-remove after 3 seconds
+    // Auto-remove after configured duration
     setTimeout(() => {
       setToasts(prev => prev.filter(toast => toast.id !== id));
-    }, 3000);
+    }, 3000); // Using constant from config would create circular import
     
     return id;
   }, []);
@@ -43,4 +43,4 @@ export function useToast() {
     error, 
     info 
   };
-}
+};

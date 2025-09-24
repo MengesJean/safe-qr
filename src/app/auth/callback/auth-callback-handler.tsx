@@ -3,14 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { getSupabaseClient } from "@/lib/supabase-client";
+import { getSupabaseClient } from "@/services/auth/supabase";
 
 type Status = {
   message: string;
   isError?: boolean;
 };
 
-export function AuthCallbackHandler() {
+export const AuthCallbackHandler = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<Status>({ message: "Connexion en cours..." });
@@ -46,4 +46,4 @@ export function AuthCallbackHandler() {
       {status.message}
     </p>
   );
-}
+};

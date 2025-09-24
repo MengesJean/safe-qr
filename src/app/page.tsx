@@ -1,7 +1,7 @@
 import { QrGeneratorWithAuth } from "@/components/qr/qr-generator-with-auth";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function Home() {
+const Home = () => {
   return (
     <Card className="border-slate-200/80 bg-white/80 backdrop-blur dark:border-slate-800/60 dark:bg-slate-900/70">
       <CardHeader className="space-y-2">
@@ -15,4 +15,6 @@ export default function Home() {
       <QrGeneratorWithAuth />
     </Card>
   );
-}
+};
+
+export default Home;

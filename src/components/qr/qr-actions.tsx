@@ -8,7 +8,7 @@ type QrActionsProps = {
   isDownloading?: boolean;
 };
 
-export function QrActions({ isLocked, isSubmitDisabled, onDownload, showDownloadButton, isDownloading = false }: QrActionsProps) {
+export const QrActions = ({ isLocked, isSubmitDisabled, onDownload, showDownloadButton, isDownloading = false }: QrActionsProps) => {
   return (
     <div className="flex flex-col gap-3 sm:flex-row">
       <Button type="submit" className="flex-1" disabled={isSubmitDisabled}>
@@ -27,4 +27,4 @@ export function QrActions({ isLocked, isSubmitDisabled, onDownload, showDownload
       ) : null}
     </div>
   );
-}
+};

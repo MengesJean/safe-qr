@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { LogIn, LogOut, User } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -14,56 +13,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useSupabaseSession } from "@/hooks/use-supabase-session";
-import { getSupabaseClient } from "@/lib/supabase-client";
+import { useAuth } from "@/hooks/auth/use-auth";
+import { getUserDisplayName, getUserInitials } from "@/utils";
 
-export function AccountButton() {
+export const AccountButton = () => {
   const { session, isLoading } = useSupabaseSession();
-  const supabase = useMemo(() => getSupabaseClient(), []);
-  const [isPending, setIsPending] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
-
-  const handleSignIn = async () => {
-    try {
-      setIsPending(true);
-      setAuthError(null);
-
-      const origin = typeof window !== "undefined" ? window.location.origin : undefined;
-      const redirectTo = origin ? `${origin}/auth/callback` : undefined;
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo },
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Erreur de connexion";
-      setAuthError(errorMessage);
-      console.error("Sign-in failed", error);
-    } finally {
-      setIsPending(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      setIsPending(true);
-      setAuthError(null);
-      
-      const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        throw new Error(error.message);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Erreur de déconnexion";
-      setAuthError(errorMessage);
-      console.error("Sign-out failed", error);
-    } finally {
-      setIsPending(false);
-    }
-  };
+  const { handleSignIn, handleSignOut, authError, isPending } = useAuth();
 
   if (isLoading) {
     return (
@@ -85,21 +40,15 @@ export function AccountButton() {
           {isPending ? "Connexion..." : "Connexion"}
         </Button>
         {authError && (
-          <p className="text-xs text-rose-500 max-w-48 text-right">{authError}</p>
+          <p className="text-xs text-rose-500 max-w-48 text-right">{authError.message}</p>
         )}
       </div>
     );
   }
 
-  const displayName =
-    (session.user.user_metadata?.full_name as string | undefined) || session.user.email || "Compte Google";
+  const displayName = getUserDisplayName(session.user);
   const avatarSrc = session.user.user_metadata?.avatar_url as string | undefined;
-  const initials = displayName
-    .split(" ")
-    .map((word) => word.charAt(0))
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const initials = getUserInitials(displayName);
 
   return (
     <div className="flex flex-col items-end gap-1">
@@ -131,8 +80,8 @@ export function AccountButton() {
         </DropdownMenuContent>
       </DropdownMenu>
       {authError && (
-        <p className="text-xs text-rose-500 max-w-48 text-right">{authError}</p>
+        <p className="text-xs text-rose-500 max-w-48 text-right">{authError.message}</p>
       )}
     </div>
   );
-}
+};

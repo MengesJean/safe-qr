@@ -11,7 +11,7 @@ type QrPreviewProps = {
   qrValue: string | null;
 };
 
-export function QrPreview({ Canvas, canvasContainerRef, qrValue }: QrPreviewProps) {
+export const QrPreview = ({ Canvas, canvasContainerRef, qrValue }: QrPreviewProps) => {
   return (
     <>
       <div
@@ -46,4 +46,4 @@ export function QrPreview({ Canvas, canvasContainerRef, qrValue }: QrPreviewProp
       ) : null}
     </>
   );
-}
+};

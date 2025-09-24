@@ -1,11 +1,12 @@
-import { getSupabaseClient } from "@/lib/supabase-client";
+import { getSupabaseClient } from "@/services/auth/supabase";
+import type { QrMetadata, LogQrResult } from "@/types";
+import { formatIsoDate } from "@/utils";
 
-type QrMetadata = {
-  title?: string | null;
-  imageUrl?: string | null;
-};
-
-export async function logQrGeneration(url: string, userId: string, metadata?: QrMetadata): Promise<{ success: boolean; error?: string }> {
+export const logQrGeneration = async (
+  url: string, 
+  userId: string, 
+  metadata?: QrMetadata
+): Promise<LogQrResult> => {
   try {
     const supabase = getSupabaseClient();
     const { title = null, imageUrl = null } = metadata ?? {};
@@ -15,7 +16,7 @@ export async function logQrGeneration(url: string, userId: string, metadata?: Qr
       user_id: userId,
       title,
       image_url: imageUrl,
-      generated_at: new Date().toISOString(),
+      generated_at: formatIsoDate(),
     });
 
     if (error) {
@@ -29,4 +30,4 @@ export async function logQrGeneration(url: string, userId: string, metadata?: Qr
     console.error("Unexpected error while logging QR generation", error);
     return { success: false, error: errorMessage };
   }
-}
+};

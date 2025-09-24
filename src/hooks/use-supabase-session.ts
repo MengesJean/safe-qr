@@ -3,14 +3,14 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 
-import { getSupabaseClient } from "@/lib/supabase-client";
+import { getSupabaseClient } from "@/services/auth/supabase";
 
 type UseSupabaseSessionResult = {
   session: Session | null;
   isLoading: boolean;
 };
 
-export function useSupabaseSession(): UseSupabaseSessionResult {
+export const useSupabaseSession = (): UseSupabaseSessionResult => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -56,4 +56,4 @@ export function useSupabaseSession(): UseSupabaseSessionResult {
   }, []);
 
   return { session, isLoading };
-}
+};

@@ -17,7 +17,7 @@ type QrFormProps = {
   isDownloading?: boolean;
 };
 
-export function QrForm({
+export const QrForm = ({
   url,
   isLocked,
   inputValidationClasses,
@@ -27,7 +27,7 @@ export function QrForm({
   onDownload,
   showDownloadButton,
   isDownloading = false,
-}: QrFormProps) {
+}: QrFormProps) => {
   return (
     <form className="space-y-4 pt-4" onSubmit={onSubmit}>
       <div className={`space-y-2${isLocked ? " hidden" : ""}`}>
@@ -56,4 +56,4 @@ export function QrForm({
       />
     </form>
   );
-}
+};
